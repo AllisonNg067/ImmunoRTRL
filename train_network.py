@@ -20,7 +20,8 @@ params = pd.read_csv('new_hypoxia_parameters.csv').values.tolist()
 initial_cell_count = 100000
 param = params[0]
 param[0] = initial_cell_count
-
+reward_type = 'killed'
+action_type = 'RT'
 def setupAgentNetwork(env, hyperparams, double_Q):
   network = QNetwork(environment=env, batch_size=hyperparams['batch_size'], double_Q = double_Q)
   agent = NeuralAgent(env, network, replay_memory_size=hyperparams['buffer_capacity'], batch_size=hyperparams['batch_size'])
@@ -100,35 +101,37 @@ def trainNetwork(network, reward_type, action_type, env, sample_size, double_Q, 
                 # Periodically update the target network
                   target_network.q_vals.set_weights(network.q_vals.get_weights())
   if double_Q:
-      network.q_vals.save('ddqn_killed.weights.keras')
+      network.q_vals.save('ddqn_' + reward_type + '.weights.keras')
       print("Trained Q-network weights saved successfully.")
   else:
-      network.q_vals.save('dqn_killed.weights.keras')
+      network.q_vals.save('dqn_' + reward_type + '.weights.keras')
       print("Trained Q-network weights saved successfully.")
   # Plot the Q-values
   plt.plot(q_values_list)
   plt.xlabel('Training Steps')
   plt.ylabel('Max Q-value')
   plt.title('Max Q-values over Training Steps')
-  plt.savefig('max q values.png')
+  plt.savefig('max q values ' + action_type + reward_type + '.png')
   plt.show()
+  plt.close()
   print(errors_list)
   # Plot the Q-values
   plt.plot(errors_list)
   plt.xlabel('Training Steps')
   plt.ylabel('Error')
   plt.title('Error in Q-Values over Training Steps')
-  plt.savefig('error.png')
+  plt.savefig('errors ' + action_type + reward_type + '.png')
   plt.show()
+  plt.close()
   plt.plot(relative_errors_list)
   plt.xlabel('Training Steps')
   plt.ylabel('Relative Error')
   plt.title('Relative Error in Q-Values over Training Steps')
-  plt.savefig('relative error.png')
+  plt.savefig('relative errors ' + action_type + reward_type + '.png')
   plt.show()
-reward_type = 'killed'
+  plt.close()
+
 # Initialize the environment
-action_type = 'RT'
 env = TME(reward_type, 'DQN', action_type, param, range(10, 36), [11, 13], [10, 14], None, (-1,))
 env.reset((-1,))
 

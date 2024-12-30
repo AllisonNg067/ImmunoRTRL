@@ -48,13 +48,13 @@ initial_cell_count = 100000
 param = params[0]
 param[0] = initial_cell_count
 D = [4,5]
-t_rad = [15, 16]
-t_treat_c4 = [10, 14]
-t_treat_p1 = [10]
+t_rad = [10, 11]
+t_treat_c4 = [10, 19]
+t_treat_p1 = [10, 11]
 t_f2 = max(max(t_rad[-1], t_treat_c4[-1]), t_treat_p1[-1]) + 30
 t_f2 = t_rad[-1] - delta_t
 
-def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=1, max_steps_per_episode=26, sample_size=2, n_splits=2):
+def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=10, max_steps_per_episode=26, sample_size=10, n_splits=5):
     if n_splits > sample_size:
         raise ValueError("n_splits must be less than or equal to sample size")
 
@@ -67,7 +67,7 @@ def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=1
     for train_index, test_index in kf.split(range(sample_size)):
         # Train on the training set
         for patient in train_index:
-            q_network.environment = TME(reward_type, 'DQN', action_type, params[patient], range(10, 36), [11, 13], [10, 14], None, (-1,))
+            q_network.environment = TME(reward_type, 'DQN', action_type, params[patient], range(10, 36), [10, 19], [10, 11], None, (-1,))
             epsilon = q_network._initial_epsilon
             for episode in range(num_episodes):
                 state = q_network.environment.reset(mode)
@@ -97,7 +97,7 @@ def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=1
 
         # Evaluate on the validation set
         for patient in test_index:
-            q_network.environment = TME(reward_type, 'DQN', action_type, params[patient], range(10, 36), [11, 13], [10, 14], None, (-1,))
+            q_network.environment = TME(reward_type, 'DQN', action_type, params[patient], range(10, 36), [10, 19], [10, 11], None, (-1,))
             for episode in range(num_episodes):
                 state = q_network.environment.reset(mode)
                 episode_reward = 0
@@ -123,7 +123,7 @@ def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=1
     return evaluation_metric
 
 # Define the objective function for Optuna
-def objective(trial, reward_type, action_type):
+def objective(trial, reward_type, action_type, double_Q):
     momentum = trial.suggest_float("momentum", 0.0, 0.9)
     clip_norm = trial.suggest_float("clip_norm", 0.1, 1.0)
     epsilon_decays = trial.suggest_int("epsilon_decays", 100, 200)
@@ -131,7 +131,7 @@ def objective(trial, reward_type, action_type):
     buffer_capacity = trial.suggest_int("buffer_capacity", 1000, 10000)
     batch_size = trial.suggest_categorical("batch_size", [16,32,64,128])
     environment = TME(reward_type, 'DQN', action_type, params[0], range(10, 36), [11, 13], [10, 14], None, (-1,))
-    q_network = QNetwork(environment, double_Q = True)
+    q_network = QNetwork(environment, double_Q = double_Q)
     q_network.set_hyperparameters(momentum=momentum, clip_norm=clip_norm, initial_epsilon=1, epsilon_decays=epsilon_decays, min_epsilon=min_epsilon, buffer_capacity=buffer_capacity, batch_size=batch_size)
 
     evaluation_metric = train_and_evaluate(q_network, reward_type, action_type, -1)
@@ -153,10 +153,11 @@ def setupAgentNetwork(env, hyperparams, double_Q):
       return agent, network
 
 # Create a study and optimize the objective function
-reward_type = 'killed'
+reward_type = 'dose'
 action_type = 'RT'
+double_Q = False
 study_dqn = optuna.create_study(direction="maximize")
-study_dqn.optimize(lambda trial: objective(trial, reward_type, action_type), n_trials=2)
+study_dqn.optimize(lambda trial: objective(trial, reward_type, action_type, double_Q), n_trials=15)
 
 print("Best hyperparameters: ", study_dqn.best_params)
 import json
@@ -164,5 +165,9 @@ import json
 # Sample dictionary
 
 # Save to a file
-with open('optimal_hyperparameters.json', 'w') as file:
+with open('optimal_hyperparameters_dqn_dose.json', 'w') as file:
     json.dump(study_dqn.best_params, file)
+import joblib
+# Save the study to a file
+joblib.dump(study_dqn, 'study_dqn_dose.pkl')
+print("Study saved to study_ddqn_killed.pkl")

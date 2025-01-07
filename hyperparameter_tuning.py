@@ -54,7 +54,7 @@ t_treat_p1 = [10, 11]
 t_f2 = max(max(t_rad[-1], t_treat_c4[-1]), t_treat_p1[-1]) + 30
 t_f2 = t_rad[-1] - delta_t
 
-def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=10, max_steps_per_episode=26, sample_size=10, n_splits=5):
+def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=20, max_steps_per_episode=26, sample_size=10, n_splits=5):
     if n_splits > sample_size:
         raise ValueError("n_splits must be less than or equal to sample size")
 
@@ -122,15 +122,16 @@ def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=1
     evaluation_metric = sum(total_rewards) / (num_episodes * len(test_index) * n_splits)
     return evaluation_metric
 
+import numpy as np
 # Define the objective function for Optuna
 def objective(trial, reward_type, action_type, double_Q):
     momentum = trial.suggest_float("momentum", 0.0, 0.9)
     clip_norm = trial.suggest_float("clip_norm", 0.1, 1.0)
     epsilon_decays = trial.suggest_int("epsilon_decays", 100, 200)
     min_epsilon = trial.suggest_float("min_epsilon", 0.001, 0.2)
-    buffer_capacity = trial.suggest_int("buffer_capacity", 1000, 10000)
-    batch_size = trial.suggest_categorical("batch_size", [16,32,64,128])
-    environment = TME(reward_type, 'DQN', action_type, params[0], range(10, 36), [11, 13], [10, 14], None, (-1,))
+    buffer_capacity = trial.suggest_categorical("buffer_capacity", list(np.linspace(2000, 10000, 81).astype(int)))
+    batch_size = trial.suggest_categorical("batch_size", [64,128])
+    environment = TME(reward_type, 'DQN', action_type, params[0], range(10, 36), [10, 19], [10, 11], None, (-1,))
     q_network = QNetwork(environment, double_Q = double_Q)
     q_network.set_hyperparameters(momentum=momentum, clip_norm=clip_norm, initial_epsilon=1, epsilon_decays=epsilon_decays, min_epsilon=min_epsilon, buffer_capacity=buffer_capacity, batch_size=batch_size)
 
@@ -142,7 +143,7 @@ def setupAgentNetwork(env, hyperparams, double_Q):
   agent = NeuralAgent(env, network, replay_memory_size=hyperparams['buffer_capacity'], batch_size=hyperparams['batch_size'])
   agent.setDiscountFactor(0.95)
   agent.attach(bc.EpsilonController(initial_e=1, e_decays=hyperparams['epsilon_decays'], e_min=hyperparams['min_epsilon']))
-  agent.attach(bc.LearningRateController(0.001))
+  agent.attach(bc.LearningRateController(0.0001))
   agent.attach(bc.InterleavedTestEpochController(epoch_length=26))
   if double_Q:
     # Initialize the target network
@@ -153,11 +154,11 @@ def setupAgentNetwork(env, hyperparams, double_Q):
       return agent, network
 
 # Create a study and optimize the objective function
-reward_type = 'dose'
+reward_type = 'killed'
 action_type = 'RT'
-double_Q = False
+double_Q = True
 study_dqn = optuna.create_study(direction="maximize")
-study_dqn.optimize(lambda trial: objective(trial, reward_type, action_type, double_Q), n_trials=15)
+study_dqn.optimize(lambda trial: objective(trial, reward_type, action_type, double_Q), n_trials=6)
 
 print("Best hyperparameters: ", study_dqn.best_params)
 import json
@@ -165,9 +166,9 @@ import json
 # Sample dictionary
 
 # Save to a file
-with open('optimal_hyperparameters_dqn_dose.json', 'w') as file:
+with open('optimal_hyperparameters_ddqn_killed.json', 'w') as file:
     json.dump(study_dqn.best_params, file)
 import joblib
 # Save the study to a file
-joblib.dump(study_dqn, 'study_dqn_dose.pkl')
+joblib.dump(study_dqn, 'study_ddqn_killed.pkl')
 print("Study saved to study_ddqn_killed.pkl")

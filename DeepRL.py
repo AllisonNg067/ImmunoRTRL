@@ -35,8 +35,8 @@ class QNetwork(MyQNetwork):
         self._compile()
 
     def _compile(self):
-        #initialise the optimiser to be an Adam optimiser with default learning rate of 0.001
-        optimizer = Adam(beta_1=self._momentum, beta_2=self._rho, epsilon=self._rms_epsilon, clipnorm=self._clip_norm)
+        #initialise the optimiser to be an Adam optimiser
+        optimizer = Adam(beta_1=self._momentum, beta_2=self._rho, epsilon=self._rms_epsilon, clipnorm=self._clip_norm, learning_rate = 0.0001)
         self.q_vals.compile(optimizer=optimizer, loss='mse')
 
     def set_hyperparameters(self, momentum, clip_norm, initial_epsilon, epsilon_decays, min_epsilon, buffer_capacity, batch_size):

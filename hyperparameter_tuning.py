@@ -129,7 +129,8 @@ def objective(trial, reward_type, action_type, double_Q):
     clip_norm = trial.suggest_float("clip_norm", 0.1, 1.0)
     epsilon_decays = trial.suggest_int("epsilon_decays", 100, 200)
     min_epsilon = trial.suggest_float("min_epsilon", 0.001, 0.2)
-    buffer_capacity = trial.suggest_categorical("buffer_capacity", list(np.linspace(2000, 10000, 81).astype(int)))
+    list_of_buffer_capacities = list(np.linspace(2000, 10000, 81).astype(int))
+    buffer_capacity = trial.suggest_categorical("buffer_capacity", [2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000, 3100, 3200, 3300, 3400, 3500, 3600, 3700, 3800, 3900, 4000, 4100, 4200, 4300, 4400, 4500, 4600, 4700, 4800, 4900, 5000, 5100, 5200, 5300, 5400, 5500, 5600, 5700, 5800, 5900, 6000, 6100, 6200, 6300, 6400, 6500, 6600, 6700, 6800, 6900, 7000, 7100, 7200, 7300, 7400, 7500, 7600, 7700, 7800, 7900, 8000, 8100, 8200, 8300, 8400, 8500, 8600, 8700, 8800, 8900, 9000, 9100, 9200, 9300, 9400, 9500, 9600, 9700, 9800, 9900, 10000])
     batch_size = trial.suggest_categorical("batch_size", [64,128])
     environment = TME(reward_type, 'DQN', action_type, params[0], range(10, 36), [10, 19], [10, 11], None, (-1,))
     q_network = QNetwork(environment, double_Q = double_Q)
@@ -154,9 +155,9 @@ def setupAgentNetwork(env, hyperparams, double_Q):
       return agent, network
 
 # Create a study and optimize the objective function
-reward_type = 'killed'
+reward_type = 'dose'
 action_type = 'RT'
-double_Q = True
+double_Q = False
 study_dqn = optuna.create_study(direction="maximize")
 study_dqn.optimize(lambda trial: objective(trial, reward_type, action_type, double_Q), n_trials=6)
 
@@ -166,9 +167,9 @@ import json
 # Sample dictionary
 
 # Save to a file
-with open('optimal_hyperparameters_ddqn_killed.json', 'w') as file:
+with open('optimal_hyperparameters_dqn_dose.json', 'w') as file:
     json.dump(study_dqn.best_params, file)
 import joblib
 # Save the study to a file
-joblib.dump(study_dqn, 'study_ddqn_killed.pkl')
+joblib.dump(study_dqn, 'study_dqn_dose.pkl')
 print("Study saved to study_ddqn_killed.pkl")

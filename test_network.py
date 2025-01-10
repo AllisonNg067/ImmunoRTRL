@@ -23,7 +23,7 @@ param[0] = initial_cell_count
 reward_type = 'killed'
 action_type = 'RT'
 
-def test_network(network, reward_type, action_type, env, sample_size=2):
+def test_network(network, reward_type, action_type, env, double_Q, sample_size=2):
     # Reset the environment to testing mode
     env.reset(1)
 
@@ -32,7 +32,7 @@ def test_network(network, reward_type, action_type, env, sample_size=2):
     total_reward = 0
     doses = []
     final_rewards = []
-    counter = 1
+    results = []
     #agent.run(n_epochs = 1, epoch_length = 26)
     for patient in range(30, 30 + sample_size):
         env = TME(reward_type, 'DQN', action_type, params[patient], range(10, 36), [11, 13], [10, 14], None, 1)
@@ -53,14 +53,43 @@ def test_network(network, reward_type, action_type, env, sample_size=2):
                 plt.xlabel('RT Fraction Number')
                 plt.ylabel('Dose (Gy)')
                 plt.title('Optimal Dose per Fraction')
-                plt.savefig('optimal dose per fraction ' + action_type + reward_type + ' ' + str(counter) + '.png')
+                #plt.savefig('optimal dose per fraction ' + action_type + reward_type + ' ' + str(counter) + '.png')
                 plt.show()
-                plt.close()
+                result = [np.exp(reward), schedule]
+                results.append(result)
+                #plt.close()
                 break
 
     print(f'Total reward during testing: {total_reward}')
     print(doses)
     print(final_rewards)
+    dataFrame = pd.DataFrame(results, columns=["TCP", "RT Dose Schedule"])
+    print(dataFrame)
+    dataFrame.to_csv(file_name, index=False)
+    #print(results)
+    # Find the length of the longest list
+    max_length = max(len(lst) for lst in doses)
+    if double_Q:
+      network_type = 'DDQN'
+    else:
+      network_type = 'DQN'
+# Pad the lists with 'nan' at the end
+    padded_schedules = [lst + [np.nan] * (max_length - len(lst)) for lst in doses]   
+    padded_schedules = np.array(padded_schedules)
+    mean_dose = np.nanmean(padded_schedules, axis=0)
+    std_dose = np.nanstd(padded_schedules, axis=0)
+    # Plot with error bars
+    plt.errorbar(range(len(mean_dose)), mean_dose, yerr=std_dose, fmt='o', ecolor='#0e4a41', capsize=5, color='#0e4a41')
+    plt.plot(range(len(mean_dose)), mean_dose, color='#0e4a41')  # Line connecting the points
+    plt.scatter(range(len(mean_dose)), mean_dose, color='#0e4a41')  # Mark points clearly
+    plt.xlabel('RT Fraction Number')
+    plt.ylabel('Dose (Gy)')
+    plt.title('Optimal ' + action_type + ' Dose per Fraction Using ' + network_type)
+    plt.savefig('optimal dose per fraction ' + action_type + ' ' + reward_type + ' ' + network_type + '.png')
+    f = open('mean TCP ' + action_type + reward_type + '.txt', 'w')
+    f.write("mean TCP " + str(np.mean(dataFrame['TCP'])))
+    print("mean TCP " + str(np.mean(dataFrame['TCP'])))
+    f.close()
 
 def setupAgentNetwork(env, hyperparams, double_Q):
   network = QNetwork(environment=env, batch_size=hyperparams['batch_size'], double_Q = double_Q)
@@ -76,18 +105,18 @@ def setupAgentNetwork(env, hyperparams, double_Q):
       return agent, network, target_network
   else:
       return agent, network
-
+reward_type='killed'
 # Define your environment class (assuming TME is already defined)
-env = TME(reward_type, 'DQN', action_type, params[40], range(10, 36), [11, 13], [10, 14], None, 1)
+env = TME(reward_type, 'DQN', action_type, params[40], range(10, 36), [10, 19], [10, 11], None, 1)
 import json
-
+double_Q = True
 # Read from a file
-with open('optimal_hyperparameters.json', 'r') as file:
+with open('optimal_hyperparameters_ddqn_killed.json', 'r') as file:
     hyperparams = json.load(file)
 
 # Initialize the agent with the environment and the network
-agent, network = setupAgentNetwork(env, hyperparams, False)
+agent, network, target_network = setupAgentNetwork(env, hyperparams, double_Q)
 # Load the trained weights
-network.q_vals.load_weights('dqn_killed.weights.keras')
+network.q_vals.load_weights('ddqn_killed.weights.keras')
 
-test_network(network, reward_type, action_type, env)
+test_network(network, reward_type, action_type, env, double_Q)

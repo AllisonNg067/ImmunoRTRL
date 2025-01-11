@@ -1,1 +1,1 @@
-{"momentum": 0.2789328295101314, "clip_norm": 0.9242045352199908, "epsilon_decays": 133, "min_epsilon": 0.09066841991186417, "buffer_capacity": 1672, "batch_size": 128}
+{"momentum": 0.7917010407732625, "clip_norm": 0.8528609077650416, "epsilon_decays": 125, "min_epsilon": 0.03906989918512264, "buffer_capacity": 4200, "batch_size": 128}

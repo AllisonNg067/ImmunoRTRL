@@ -15,7 +15,7 @@ import tensorflow as tf
 from deer.agent import NeuralAgent
 import deer.experiment.base_controllers as bc
 from sklearn.model_selection import KFold
-
+import joblib
 #initialising parameters
 free = [1,1,0]
 LQL = 0
@@ -54,7 +54,7 @@ t_treat_p1 = [10, 11]
 t_f2 = max(max(t_rad[-1], t_treat_c4[-1]), t_treat_p1[-1]) + 30
 t_f2 = t_rad[-1] - delta_t
 
-def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=20, max_steps_per_episode=26, sample_size=10, n_splits=5):
+def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=1, max_steps_per_episode=26, sample_size=5, n_splits=5):
     if n_splits > sample_size:
         raise ValueError("n_splits must be less than or equal to sample size")
 
@@ -64,10 +64,16 @@ def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=2
     epsilon_decays = q_network._epsilon_decays
     min_epsilon = q_network._min_epsilon
     epsilon_decay_rate =( min_epsilon/epsilon) ** (1/epsilon_decays)
+    
     for train_index, test_index in kf.split(range(sample_size)):
+        #print('train index', train_index)
+        #print('test index', test_index)
         # Train on the training set
         for patient in train_index:
-            q_network.environment = TME(reward_type, 'DQN', action_type, params[patient], range(10, 36), [10, 19], [10, 11], None, (-1,))
+            np.random.seed(patient)
+            param[0] = int(np.random.normal(loc=100000, scale=100.0, size=None))
+            q_network.environment = TME(reward_type, 'DQN', action_type, param, range(10, 36), [10, 19], [10, 11], None, (-1,))
+            print(q_network.environment.observe())
             epsilon = q_network._initial_epsilon
             for episode in range(num_episodes):
                 state = q_network.environment.reset(mode)
@@ -97,7 +103,10 @@ def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=2
 
         # Evaluate on the validation set
         for patient in test_index:
-            q_network.environment = TME(reward_type, 'DQN', action_type, params[patient], range(10, 36), [10, 19], [10, 11], None, (-1,))
+            np.random.seed(patient)
+            param[0] = int(np.random.normal(loc=100000, scale=100.0, size=None))
+            q_network.environment = TME(reward_type, 'DQN', action_type, param, range(10, 36), [10, 19], [10, 11], None, (-1,))
+            print(q_network.environment.observe())
             for episode in range(num_episodes):
                 state = q_network.environment.reset(mode)
                 episode_reward = 0
@@ -118,10 +127,6 @@ def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=2
                 total_rewards.append(episode_reward)
                 print(f"Validation - Patient {patient + 1}/{sample_size}, Episode {episode + 1}/{num_episodes}, Reward: {episode_reward}")
 
-    # Calculate the evaluation metric (e.g., average reward over all validation episodes and patients)
-    evaluation_metric = sum(total_rewards) / (num_episodes * len(test_index) * n_splits)
-    return evaluation_metric
-
 import numpy as np
 # Define the objective function for Optuna
 def objective(trial, reward_type, action_type, double_Q):
@@ -129,7 +134,8 @@ def objective(trial, reward_type, action_type, double_Q):
     clip_norm = trial.suggest_float("clip_norm", 0.1, 1.0)
     epsilon_decays = trial.suggest_int("epsilon_decays", 100, 200)
     min_epsilon = trial.suggest_float("min_epsilon", 0.001, 0.2)
-    buffer_capacity = trial.suggest_categorical("buffer_capacity", list(np.linspace(2000, 10000, 81).astype(int)))
+    #list_of_buffer_capacities = list(np.linspace(2000, 10000, 81).astype(int))
+    buffer_capacity = trial.suggest_categorical("buffer_capacity", [2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000, 3100, 3200, 3300, 3400, 3500, 3600, 3700, 3800, 3900, 4000, 4100, 4200, 4300, 4400, 4500, 4600, 4700, 4800, 4900, 5000, 5100, 5200, 5300, 5400, 5500, 5600, 5700, 5800, 5900, 6000, 6100, 6200, 6300, 6400, 6500, 6600, 6700, 6800, 6900, 7000, 7100, 7200, 7300, 7400, 7500, 7600, 7700, 7800, 7900, 8000, 8100, 8200, 8300, 8400, 8500, 8600, 8700, 8800, 8900, 9000, 9100, 9200, 9300, 9400, 9500, 9600, 9700, 9800, 9900, 10000])
     batch_size = trial.suggest_categorical("batch_size", [64,128])
     environment = TME(reward_type, 'DQN', action_type, params[0], range(10, 36), [10, 19], [10, 11], None, (-1,))
     q_network = QNetwork(environment, double_Q = double_Q)
@@ -154,10 +160,10 @@ def setupAgentNetwork(env, hyperparams, double_Q):
       return agent, network
 
 # Create a study and optimize the objective function
-reward_type = 'killed'
+reward_type = 'dose'
 action_type = 'RT'
 double_Q = False
-study_dqn = joblib.load("study_dqn_killed.pkl")
+study_dqn = joblib.load("study_dqn_dose.pkl")
 study_dqn.optimize(lambda trial: objective(trial, reward_type, action_type, double_Q), n_trials=6)
 
 print("Best hyperparameters: ", study_dqn.best_params)
@@ -166,9 +172,9 @@ import json
 # Sample dictionary
 
 # Save to a file
-with open('optimal_hyperparameters_dqn_killed.json', 'w') as file:
+with open('optimal_hyperparameters_dqn_dose.json', 'w') as file:
     json.dump(study_dqn.best_params, file)
 import joblib
 # Save the study to a file
-joblib.dump(study_dqn, 'study_dqn_killed.pkl')
+joblib.dump(study_dqn, 'study_dqn_dose.pkl')
 print("Study saved to study_ddqn_killed.pkl")

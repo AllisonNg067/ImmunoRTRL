@@ -71,11 +71,13 @@ def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=2
         # Train on the training set
         for patient in train_index:
             np.random.seed(patient)
+            initial_cell_counts = np.random.normal(loc=100000, scale=100.0, size=num_episodes)
             param[0] = int(np.random.normal(loc=100000, scale=100.0, size=None))
-            q_network.environment = TME(reward_type, 'DQN', action_type, param, range(10, 36), [10, 19], [10, 11], None, (-1,))
-            #print(q_network.environment.observe())
-            epsilon = q_network._initial_epsilon
+            
             for episode in range(num_episodes):
+                param[0] = int(initial_cell_counts[episode])
+                q_network.environment = TME(reward_type, 'DQN', action_type, params[patient], range(10, 36), [10, 19], [10, 11], None, (-1,))
+                epsilon = q_network._initial_epsilon
                 state = q_network.environment.reset(mode)
                 episode_reward = 0
 
@@ -104,10 +106,12 @@ def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=2
         # Evaluate on the validation set
         for patient in test_index:
             np.random.seed(patient)
-            param[0] = int(np.random.normal(loc=100000, scale=100.0, size=None))
-            q_network.environment = TME(reward_type, 'DQN', action_type, param, range(10, 36), [10, 19], [10, 11], None, (-1,))
+            initial_cell_counts = np.random.normal(loc=100000, scale=100.0, size=num_episodes)
             #print(q_network.environment.observe())
             for episode in range(num_episodes):
+                param[0] = int(initial_cell_counts[episode])
+                q_network.environment = TME(reward_type, 'DQN', action_type, param, range(10, 36), [10, 19], [10, 11], None, (-1,))
+                epsilon = q_network._initial_epsilon
                 state = q_network.environment.reset(mode)
                 episode_reward = 0
 
@@ -164,7 +168,7 @@ def setupAgentNetwork(env, hyperparams, double_Q):
       return agent, network
 
 # Create a study and optimize the objective function
-reward_type = 'killed'
+reward_type = 'dose'
 action_type = 'RT'
 double_Q = False
 study_dqn = optuna.create_study(direction="maximize")
@@ -176,9 +180,9 @@ import json
 # Sample dictionary
 
 # Save to a file
-with open('optimal_hyperparameters_dqn_killed.json', 'w') as file:
+with open('optimal_hyperparameters_dqn_dose.json', 'w') as file:
     json.dump(study_dqn.best_params, file)
 import joblib
 # Save the study to a file
-joblib.dump(study_dqn, 'study_dqn_killed.pkl')
+joblib.dump(study_dqn, 'study_dqn_dose.pkl')
 print("Study saved to study_ddqn_killed.pkl")

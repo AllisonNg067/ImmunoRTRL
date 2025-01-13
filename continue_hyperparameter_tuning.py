@@ -54,7 +54,7 @@ t_treat_p1 = [10, 11]
 t_f2 = max(max(t_rad[-1], t_treat_c4[-1]), t_treat_p1[-1]) + 30
 t_f2 = t_rad[-1] - delta_t
 
-def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=1, max_steps_per_episode=26, sample_size=5, n_splits=5):
+def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=2, max_steps_per_episode=26, sample_size=2, n_splits=2):
     if n_splits > sample_size:
         raise ValueError("n_splits must be less than or equal to sample size")
 
@@ -71,11 +71,13 @@ def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=1
         # Train on the training set
         for patient in train_index:
             np.random.seed(patient)
-            param[0] = int(np.random.normal(loc=100000, scale=100.0, size=None))
-            q_network.environment = TME(reward_type, 'DQN', action_type, param, range(10, 36), [10, 19], [10, 11], None, (-1,))
-            print(q_network.environment.observe())
-            epsilon = q_network._initial_epsilon
+            initial_cell_counts = np.random.normal(loc=100000, scale=100.0, size=num_episodes)
+
             for episode in range(num_episodes):
+                param[0] = int(initial_cell_counts[episode])
+                q_network.environment = TME(reward_type, 'DQN', action_type, param, range(10, 36), [10, 19], [10, 11], None, (-1,))
+                #print(q_network.environment.observe())
+                epsilon = q_network._initial_epsilon
                 state = q_network.environment.reset(mode)
                 episode_reward = 0
 
@@ -104,10 +106,11 @@ def train_and_evaluate(q_network, reward_type, action_type, mode, num_episodes=1
         # Evaluate on the validation set
         for patient in test_index:
             np.random.seed(patient)
-            param[0] = int(np.random.normal(loc=100000, scale=100.0, size=None))
-            q_network.environment = TME(reward_type, 'DQN', action_type, param, range(10, 36), [10, 19], [10, 11], None, (-1,))
-            print(q_network.environment.observe())
+            initial_cell_counts = np.random.normal(loc=100000, scale=100.0, size=num_episodes)
             for episode in range(num_episodes):
+                param[0] = int(initial_cell_counts[episode])
+                q_network.environment = TME(reward_type, 'DQN', action_type, param, range(10, 36), [10, 19], [10, 11], None, (-1,))
+                epsilon = q_network._initial_epsilon
                 state = q_network.environment.reset(mode)
                 episode_reward = 0
 
@@ -164,7 +167,7 @@ reward_type = 'dose'
 action_type = 'RT'
 double_Q = False
 study_dqn = joblib.load("study_dqn_dose.pkl")
-study_dqn.optimize(lambda trial: objective(trial, reward_type, action_type, double_Q), n_trials=6)
+study_dqn.optimize(lambda trial: objective(trial, reward_type, action_type, double_Q), n_trials=1)
 
 print("Best hyperparameters: ", study_dqn.best_params)
 import json
